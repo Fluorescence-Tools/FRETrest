@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import argparse
 import LabelLib as ll
 import numpy as np 
@@ -6,6 +7,8 @@ import argparse
 import os
 import json
 import re
+import sys
+
 
 def main():
   parser = argparse.ArgumentParser(description='Create a FRET restraint file for AMBER and update pseudo atom positions.')
@@ -15,8 +18,8 @@ def main():
 		      help='Input restart file path')
   parser.add_argument('-j','--json', required=True, type=str,
 		      help='FRET-restraint file path in .fps.json format')
-  #parser.add_argument('--restout', required=True, type=str,
-		      #help='Output restart file path with updated pseudoatom positions')
+  parser.add_argument('--restout', required=True, type=str,
+		      help='Output restart file path with updated pseudoatom positions')
   parser.add_argument('--fout', required=True, type=str,
 		      help='Output restraints file path (AMBER NMR restraints format, DISANG)')
   parser.add_argument('--force', required=True, type=float,
@@ -31,7 +34,7 @@ def main():
   top=args.top
   inRestartPath=args.restin
   jsonPath=args.json
-  #outRestartPath=args.restout
+  outRestartPath=args.restout
   outDisang=args.fout
   maxForce=args.force
   chi2Name=args.chi2
@@ -48,6 +51,7 @@ def main():
     parser.error("evaluator "+chi2Name+" is not found in "+jsonPath)
   selLPs=selectedLPs(jdata,selDistList)
   
+  print('#loading trajectory')
   frame=md.load(inRestartPath,top=top)[0]
   duIds=frame.topology.select('name DU')
   lpNames=sorted(selLPs.keys())
@@ -55,9 +59,10 @@ def main():
     print('ERROR! Number of pseudoatoms in topology ({}) does not match to the number of labelling positions ({}).'.format(len(duIds),len(lpNames)))
     return
   
-  frame.image_molecules(inplace=True)
+  #frame.image_molecules(inplace=True)
   
   #update pseudoatom positions
+  print('#update pseudoatom positions')
   avs={}
   for ilp,lpName in enumerate(lpNames):
     av=getAV(frame,selLPs[lpName],resSeqOffset)
@@ -69,10 +74,20 @@ def main():
     if np.max(av.grid)>0.0:
       mp=avMP(av)*0.1
       frame.xyz[0,duId,:]=mp
+    else:
+      print('ERROR! Calculation resulted in an empty AV for position {}.'.format(lpName))
+      return
+    print(lpName+' done!')
+      
+  #saveRestart(outRestartPath,frame,inRestartPath)
   
   restraints=[]
   #FRET restraints
+  print('#FRET restraints')
   for dist in selDistList:
+    sys.stdout.write(dist+' ... ')
+    sys.stdout.flush()
+    
     lp1name=jdata["Distances"][dist]["position1_name"]
     lp2name=jdata["Distances"][dist]["position2_name"]
     lp1Index=lpNames.index(lp1name)
@@ -93,10 +108,19 @@ def main():
     rest.rk2=maxForce/(2.0*69.4786*(rest.r2-rest.r1)) #69.4786 pN = 1 kcal/mol Angstrom
     rest.rk3=maxForce/(2.0*69.4786*(rest.r3-rest.r4))
     restraints.append(rest)
+    
+    print(' done!')
   
   #anchor restraints
+  print('#anchor restraints')
   for ilp,lpName in enumerate(lpNames):
+    sys.stdout.write(lpName+' ... ')
+    sys.stdout.flush()
+    
     vmdSel=selLPs[lpName]['anchor_atoms']
+    if len(vmdSel)==0:
+      print("ERROR! Empty anchor atoms selection mask for position "+lpName)
+      return
     anchorSel=selVmd2Mdtraj(vmdSel, resSeqOffset)
     ancIds=frame.topology.select(anchorSel)
     if len(ancIds)==0:
@@ -118,6 +142,8 @@ def main():
       rest.rk2=2.0*maxForce/(2.0*69.4786*(rest.r2-rest.r1)) #69.4786 pN = 1 kcal/mol Angstrom
       rest.rk3=rest.rk2
       restraints.append(rest)
+      
+    print(' done!')
 
   with open(outDisang, "w") as text_file:
     for rest in restraints:
@@ -136,6 +162,31 @@ class AmberRestraint:
     return '&rst iat = {}, {}, r1 = {:.3f}, r2 = {:.3f}, r3 = {:.3f}, r4 = {:.3f}, rk2 = {:.5f}, rk3 = {:.5f},\n/\n'.format(
       self.iat1, self.iat2, self.r1, self.r2, self.r3, self.r4, self.rk2, self.rk3)
 
+def saveRestart(outPath,frame,inRestartPath):
+  print("WARNING! Restart file update is not yet implemented!")
+  
+  xyz=frame.xyz[0,:,:]*10.0
+  cell_lengths=frame.unitcell_lengths*10.0
+  cell_angles=frame.unitcell_angles
+  time=frame.time[0]
+  
+  out=open(outPath, 'w')
+  out.write('Amber restart file written by FRETrest\n')
+  out.write('%5d%15.7e\n' % (frame.n_atoms, time))
+  fmt = '%12.7f%12.7f%12.7f'
+
+  for i in range(frame.n_atoms):
+      acor = xyz[i, :]
+      out.write(fmt % (acor[0], acor[1], acor[2]))
+      if i % 2 == 1: out.write('\n')
+  if frame.n_atoms % 2 == 1: out.write('\n')
+  if cell_lengths is not None:
+      out.write(fmt % (cell_lengths[0,0], cell_lengths[0,1],
+				cell_lengths[0,2]))
+      out.write(fmt % (cell_angles[0,0], cell_angles[0,1],
+				cell_angles[0,2]) + '\n')
+  out.flush()
+  
 def av2points(grid):
   area = grid.shape[0] * grid.shape[1]
   nx, ny, nz = grid.shape
@@ -190,25 +241,30 @@ def Rda(av1,av2, rtype, transVec=None, R0=None):
   
   if rtype=='RDAMean':
     return np.average(rdas,weights=weights)
-  elif rtype=='RDAMean':
+  elif rtype=='RDAMeanE':
     aveE=np.average(Rda2Efficiency(rdas,R0),weights=weights)
     return Efficiency2Rda(aveE,R0)
   else:
     print('ERROR! Unknown distance type: "{}"'.format(rtype))
     return None
   
-def RmpFromRda(av1, av2, rda, rtype, R0=None, tolerance=0.2):
+def RmpFromRda(av1, av2, rda, rtype, R0=None, tolerance=0.2, maxIter=10):
   mp1=avMP(av1)
   mp2=avMP(av2)
   drNorm=(mp2-mp1)/np.sqrt(np.sum(np.square(mp2-mp1)))
   
   shift=np.zeros(3)
-  curRda=Rda(av1,av2,rtype)
+  curRda=Rda(av1,av2,rtype,R0=R0)
   dev=rda-curRda
-  while abs(dev)>tolerance:
+  for it in range(maxIter):
     shift+=drNorm*dev
     curRda=Rda(av1,av2,rtype,shift,R0=R0)
     dev=rda-curRda
+    if abs(dev)<tolerance:
+      break
+  if abs(dev)>tolerance:
+    print('ERROR! RmpFromRda() could not converge! Achieved deviation: {}, tolerance: {}'.format(abs(dev),tolerance))
+    return None
   return np.sqrt(np.sum(np.square(mp2+shift-mp1)))
   
 def selectedLPs(jdata,selDistList):
@@ -289,6 +345,10 @@ def avMP(grid):
   return mp
 
 def getAV(fr,lp, resSeqOffset=0):
+  avType=lp['simulation_type']
+  if avType != 'AV1':
+    print('ERROR! Simulation type is not supported: '+avType)
+    return None
   linker_length=float(lp['linker_length'])
   linker_width=float(lp['linker_width'])
   dye_radius=float(lp['radius1'])

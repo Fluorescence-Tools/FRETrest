@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import FRETrest as fr
 import numpy as np 
 import mdtraj as md
