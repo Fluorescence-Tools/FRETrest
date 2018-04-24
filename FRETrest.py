@@ -106,7 +106,8 @@ def main():
     rest.r1=rest.r2-float(jdata["Distances"][dist]["error_neg"])
     rest.r4=rest.r3+float(jdata["Distances"][dist]["error_pos"])
     rest.rk2=maxForce/(2.0*69.4786*(rest.r2-rest.r1)) #69.4786 pN = 1 kcal/mol Angstrom
-    rest.rk3=maxForce/(2.0*69.4786*(rest.r3-rest.r4))
+    rest.rk3=maxForce/(2.0*69.4786*(rest.r4-rest.r3))
+    rest.comment='{} ({}) <--> {} ({}) '.format(lp1name,rest.iat1,lp2name,rest.iat2)
     restraints.append(rest)
     
     print(' done!')
@@ -114,7 +115,7 @@ def main():
   #anchor restraints
   print('#anchor restraints')
   for ilp,lpName in enumerate(lpNames):
-    sys.stdout.write(lpName+' ... ')
+    sys.stdout.write('Position: '+lpName)
     sys.stdout.flush()
     
     vmdSel=selLPs[lpName]['anchor_atoms']
@@ -122,6 +123,11 @@ def main():
       print("ERROR! Empty anchor atoms selection mask for position "+lpName)
       return
     anchorSel=selVmd2Mdtraj(vmdSel, resSeqOffset)
+    
+    selExprStr=frame.topology.select_expression(anchorSel)
+    selExprStr=selExprStr.replace('[atom.index for atom in topology.atoms ','')[:-1]
+    print('. Selecting: '+selExprStr+'')
+      
     ancIds=frame.topology.select(anchorSel)
     if len(ancIds)==0:
       print("ERROR! No anchor atoms selected for position "+lpName+":")
@@ -133,17 +139,20 @@ def main():
       mp=frame.xyz[0,duId,:]
       dist=np.sqrt(np.sum(np.square(ancXYZ-mp)))
       rest=AmberRestraint()
-      rest.iat1=ancId+1
-      rest.iat2=duId+1
+      rest.iat1=duId+1
+      rest.iat2=ancId+1
       rest.r2=dist*10.0
       rest.r3=rest.r2
       rest.r1=rest.r2-1.0
       rest.r4=rest.r3+1.0
       rest.rk2=2.0*maxForce/(2.0*69.4786*(rest.r2-rest.r1)) #69.4786 pN = 1 kcal/mol Angstrom
       rest.rk3=rest.rk2
+      resid2=frame.topology.atom(ancId).residue.resSeq
+      atname2=frame.topology.atom(ancId).name
+      rest.comment='{} ({}) <--> {}@{} ({})'.format(lpName,rest.iat1,resid2,atname2,rest.iat2)
       restraints.append(rest)
-      
-    print(' done!')
+
+    print('Done! Atoms selected: {}'.format(len(ancIds)))
 
   with open(outDisang, "w") as text_file:
     for rest in restraints:
@@ -157,10 +166,11 @@ class AmberRestraint:
   r3=0.0
   r4=0.0
   rk2 = 0.0
-  rk3 = 0.0  
+  rk3 = 0.0
+  comment= ''
   def formString(self):
-    return '&rst iat = {}, {}, r1 = {:.3f}, r2 = {:.3f}, r3 = {:.3f}, r4 = {:.3f}, rk2 = {:.5f}, rk3 = {:.5f},\n/\n'.format(
-      self.iat1, self.iat2, self.r1, self.r2, self.r3, self.r4, self.rk2, self.rk3)
+    return '#{}\n&rst iat = {}, {}, r1 = {:.3f}, r2 = {:.3f}, r3 = {:.3f}, r4 = {:.3f}, rk2 = {:.5f}, rk3 = {:.5f},\n/\n'.format(
+      self.comment, self.iat1, self.iat2, self.r1, self.r2, self.r3, self.r4, self.rk2, self.rk3)
 
 def saveRestart(outPath,frame,inRestartPath):
   print("WARNING! Restart file update is not yet implemented!")
@@ -313,6 +323,8 @@ def selVmd2Mdtraj(sel, resSeqOffset=0):
   p=re.compile('resSeq ([0-9]+)')
   sel=p.sub(lambda m: 'resSeq {}'.format(int(m.group(1))+resSeqOffset),sel)
   
+  p=re.compile('(resSeq [0-9]+ to )([0-9]+)')
+  sel=p.sub(lambda m: '{}{}'.format(m.group(1),int(m.group(2))+resSeqOffset),sel)
   return sel
 
 def keepString(lp, resSeqOffset=0):

@@ -463,7 +463,7 @@
     "Positions": {
         "a12AD": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 111 to 115) and (name P or name \"O3'\")",
             "atom_name": "C5",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -480,7 +480,7 @@
         },
         "b11DC": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 73 to 77) and (name P or name \"O3'\")",
             "atom_name": "C5",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -497,7 +497,7 @@
         },
         "b14AC": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 76 to 80) and (name P or name \"O3'\")",
             "atom_name": "C5",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -514,7 +514,7 @@
         },
         "b14DC": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 76 to 80) and (name P or name \"O3'\")",
             "atom_name": "C5",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -531,7 +531,7 @@
         },
         "b27AB": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 89 to 93) and (name P or name \"O3'\")",
             "atom_name": "C5",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -548,7 +548,7 @@
         },
         "b27DB": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 89 to 93) and (name P or name \"O3'\")",
             "atom_name": "C5",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -565,7 +565,7 @@
         },
         "b33AB": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 94 to 99) and (name P or name \"O3'\")",
             "atom_name": "C5",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -582,7 +582,7 @@
         },
         "b5DC": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 67 to 71) and (name P or name \"O3'\")",
             "atom_name": "C5",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -599,7 +599,7 @@
         },
         "b8DC": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 70 to 74) and (name P or name \"O3'\")",
             "atom_name": "C5",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -616,7 +616,7 @@
         },
         "c24AA": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 54 to 58) and (name P or name \"O3'\")",
             "atom_name": "N2",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -633,7 +633,7 @@
         },
         "c29DA": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 59 to 63) and (name P or name \"O3'\")",
             "atom_name": "C5",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -650,7 +650,7 @@
         },
         "c8AB": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 38 to 42) and (name P or name \"O3'\")",
             "atom_name": "C5",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -667,7 +667,7 @@
         },
         "c8DB": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 38 to 42) and (name P or name \"O3'\")",
             "atom_name": "C5",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -684,7 +684,7 @@
         },
         "d10AA": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 8 to 12) and (name P or name \"O3'\")",
             "atom_name": "N2",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -701,7 +701,7 @@
         },
         "d23AD": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 21 to 25) and (name P or name \"O3'\")",
             "atom_name": "C5",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -718,7 +718,7 @@
         },
         "d26AD": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 24 to 28) and (name P or name \"O3'\")",
             "atom_name": "C5",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -735,7 +735,7 @@
         },
         "d28AD": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 26 to 30) and (name P or name \"O3'\")",
             "atom_name": "C5",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
@@ -752,7 +752,7 @@
         },
         "d7DA": {
             "allowed_sphere_radius": 1.5,
-            "anchor_atoms": "",
+            "anchor_atoms": "(resid 5 to 9) and (name P or name \"O3'\")",
             "atom_name": "C5",
             "chain_identifier": "",
             "contact_volume_thickness": 0,
