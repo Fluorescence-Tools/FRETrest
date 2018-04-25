@@ -6,7 +6,7 @@ Initial minimization w/ position restraints (5 kcal/molA) and PME (sander)
   ntpr   = 100,     ntwx   = 0,       ntwv   = 0,      ntwe   = 0,
   ioutfm = 0,       ntwprt = 0,
 
-  ntf    = 1,       ntb    = 1,       dielc  = 1,      igb    = 0,
+  ntf    = 1,       dielc  = 1,      igb    = 0,
   cut    = 8.0,     nsnb   = 25,
 
   ipol   = 0,
@@ -16,22 +16,23 @@ Initial minimization w/ position restraints (5 kcal/molA) and PME (sander)
   imin   = 1,       
   maxcyc = 250,   
   ncyc   = 50,   
-  ntmin  = 1,       dx0    = 0.1,     drms   = 0.0001,
+  ntmin  = 1,       dx0    = 0.1,     dxm    = 0.5,     drms   = 0.0001,
 
   nstlim = 10000,
   nscm   = 0,
   t      = 0.0,     dt     = 0.002,
 
-  temp0  = 330.0,   tempi  = 330.0,   
+  temp0  = 300.0,   tempi  = 300.0,   
   ig     = 71277,
   ntt    = 0,
   tautp  = 0.2,
-  vlimit = 20.0,
+  
 
   ntp    = 0,       pres0  = 1.0,     comp   = 44.6,
   taup   = 0.2,
 
-  ntc    = 1,       tol    = 0.000001
+  ntc    = 1,       tol    = 0.000001,
+
  &end
 Hold the Protein fixed
 5.0

@@ -78,9 +78,7 @@ def main():
       print('ERROR! Calculation resulted in an empty AV for position {}.'.format(lpName))
       return
     print(lpName+' done!')
-      
-  #saveRestart(outRestartPath,frame,inRestartPath)
-  
+   
   restraints=[]
   #FRET restraints
   print('#FRET restraints')
@@ -115,7 +113,7 @@ def main():
   #anchor restraints
   print('#anchor restraints')
   for ilp,lpName in enumerate(lpNames):
-    sys.stdout.write('Position: '+lpName)
+    sys.stdout.write('Position '+lpName+'. ')
     sys.stdout.flush()
     
     vmdSel=selLPs[lpName]['anchor_atoms']
@@ -125,8 +123,8 @@ def main():
     anchorSel=selVmd2Mdtraj(vmdSel, resSeqOffset)
     
     selExprStr=frame.topology.select_expression(anchorSel)
-    selExprStr=selExprStr.replace('[atom.index for atom in topology.atoms ','')[:-1]
-    print('. Selecting: '+selExprStr+'')
+    selExprStr=selExprStr.replace('[atom.index for atom in topology.atoms if ','')[:-1]
+    print('Selection: '+selExprStr+'')
       
     ancIds=frame.topology.select(anchorSel)
     if len(ancIds)==0:
@@ -152,11 +150,13 @@ def main():
       rest.comment='{} ({}) <--> {}@{} ({})'.format(lpName,rest.iat1,resid2,atname2,rest.iat2)
       restraints.append(rest)
 
-    print('Done! Atoms selected: {}'.format(len(ancIds)))
+    print('Done! Atoms selected: {}\n'.format(len(ancIds)))
 
   with open(outDisang, "w") as text_file:
     for rest in restraints:
       text_file.write(rest.formString())
+  
+  saveRestart(outRestartPath,frame,inRestartPath)
  
 class AmberRestraint:
   iat1=-100
@@ -172,29 +172,68 @@ class AmberRestraint:
     return '#{}\n&rst iat = {}, {}, r1 = {:.3f}, r2 = {:.3f}, r3 = {:.3f}, r4 = {:.3f}, rk2 = {:.5f}, rk3 = {:.5f},\n/\n'.format(
       self.comment, self.iat1, self.iat2, self.r1, self.r2, self.r3, self.r4, self.rk2, self.rk3)
 
-def saveRestart(outPath,frame,inRestartPath):
-  print("WARNING! Restart file update is not yet implemented!")
-  
+def saveRestart(outPath,frame,inRestartPath): 
   xyz=frame.xyz[0,:,:]*10.0
   cell_lengths=frame.unitcell_lengths*10.0
   cell_angles=frame.unitcell_angles
   time=frame.time[0]
+  
+  #read velocities
+  finRest = open(inRestartPath,'r')
+  inlines=finRest.readlines()
+  n_at=int(inlines[1].split(' ')[0])
+  #check match!
+  if n_at != frame.n_atoms:
+    print('ERROR! Number of atoms in the frame ({}) and restart file ({}) do not match.'.format(frame.n_atoms,n_at))
+    return
+  if len(inlines) < (3+frame.n_atoms):
+    print('Information: No velocities in the restart file.')
+    frame.save_amberrst7(outPath)
+    return
+  
+  vel=np.zeros([frame.n_atoms,3])
+  iLineVel=2+int(n_at/2)
+  vel=np.empty([n_at,3])
+  iVelStart=0
+  if n_at%2==1:
+    vel[iVelStart]=[float(x) for x in inlines[iLineVel].split()[3:]]
+    iVelStart+=1
+    iLineVel+=1
+  for i in range(iVelStart,n_at,2):
+    vel[i]=[float(x) for x in inlines[iLineVel].split()[:3]]
+    vel[i+1]=[float(x) for x in inlines[iLineVel].split()[3:]]
+    iLineVel+=1
+  cell_length_rest=np.array([[float(x) for x in inlines[iLineVel].split()[:3]]])
+  cell_angles_rest=np.array([[float(x) for x in inlines[iLineVel].split()[3:]]])
+
+  if np.absolute(cell_length_rest-cell_lengths).max()>0.0001:
+    print('ERROR! Cell length in the frame ({}) and restart file ({}) do not match.'.format(cell_lengths,cell_length_rest))
+    return
+  if np.absolute(cell_angles-cell_angles_rest).max()>0.0001:
+    print('ERROR! Cell angles in the frame ({}) and restart file ({}) do not match.'.format(cell_angles,cell_angles_rest))
+    return
   
   out=open(outPath, 'w')
   out.write('Amber restart file written by FRETrest\n')
   out.write('%5d%15.7e\n' % (frame.n_atoms, time))
   fmt = '%12.7f%12.7f%12.7f'
 
+  #coordinates
   for i in range(frame.n_atoms):
       acor = xyz[i, :]
       out.write(fmt % (acor[0], acor[1], acor[2]))
       if i % 2 == 1: out.write('\n')
-  if frame.n_atoms % 2 == 1: out.write('\n')
+  #velocities
+  for i in range(frame.n_atoms):
+    avel = vel[i, :]
+    out.write(fmt % (avel[0], avel[1], avel[2]))
+    if (frame.n_atoms+i) % 2 == 1: out.write('\n')    
+  #if frame.n_atoms % 2 == 1: out.write('\n')
   if cell_lengths is not None:
-      out.write(fmt % (cell_lengths[0,0], cell_lengths[0,1],
-				cell_lengths[0,2]))
-      out.write(fmt % (cell_angles[0,0], cell_angles[0,1],
-				cell_angles[0,2]) + '\n')
+      out.write(fmt % (cell_length_rest[0,0], cell_length_rest[0,1],
+				cell_length_rest[0,2]))
+      out.write(fmt % (cell_angles_rest[0,0], cell_angles_rest[0,1],
+				cell_angles_rest[0,2]) + '\n')
   out.flush()
   
 def av2points(grid):
@@ -297,7 +336,7 @@ def selectedDistances(jdata,chi2Name):
       return None #error
   else:
     selDistList=list(jdata['Distances'].keys())
-  return selDistList
+  return sorted(selDistList)
     
 def chain2index(chain):
   return str(ord(chain[0])-ord('A'))

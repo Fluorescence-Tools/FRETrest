@@ -1,1 +1,0 @@
-python3 ../../FRETrest.py -t majAD_PA_solv.prmtop -r majAD_PA_solv.inpcrd -j labeling_positions_and_distances_majAD_MD_AV1_mod.json --restout majAD_PA_solv.restrt --fout md_force_template.f --force 50 --resoffset -1
