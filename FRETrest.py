@@ -172,6 +172,28 @@ class AmberRestraint:
     return '#{}\n&rst iat = {}, {}, r1 = {:.3f}, r2 = {:.3f}, r3 = {:.3f}, r4 = {:.3f}, rk2 = {:.5f}, rk3 = {:.5f},\n/\n'.format(
       self.comment, self.iat1, self.iat2, self.r1, self.r2, self.r3, self.r4, self.rk2, self.rk3)
 
+def readVelocities(inRestartPath):
+  finRest = open(inRestartPath,'r')
+  inlines=finRest.readlines()
+  n_at=int(inlines[1].split(' ')[0])
+  
+  if len(inlines) < (3+n_at):
+    #No velocities in the restart file
+    return None, None, None
+  
+  vel=np.zeros([n_at,3])
+  iLineVel=2+int(n_at/2.0+0.5)
+  vel=np.empty([n_at,3])
+  for i in range(0,n_at):
+    if i%2==0:
+      vel[i] = [float(x) for x in inlines[iLineVel].split()[:3]]
+    else:
+      vel[i] = [float(x) for x in inlines[iLineVel].split()[3:]]
+      iLineVel+=1
+  cell_length=np.array([[float(x) for x in inlines[-1].split()[:3]]])
+  cell_angles=np.array([[float(x) for x in inlines[-1].split()[3:]]])
+  return vel, cell_length, cell_angles
+
 def saveRestart(outPath,frame,inRestartPath): 
   xyz=frame.xyz[0,:,:]*10.0
   cell_lengths=frame.unitcell_lengths*10.0
@@ -179,32 +201,14 @@ def saveRestart(outPath,frame,inRestartPath):
   time=frame.time[0]
   
   #read velocities
-  finRest = open(inRestartPath,'r')
-  inlines=finRest.readlines()
-  n_at=int(inlines[1].split(' ')[0])
-  #check match!
-  if n_at != frame.n_atoms:
-    print('ERROR! Number of atoms in the frame ({}) and restart file ({}) do not match.'.format(frame.n_atoms,n_at))
-    return
-  if len(inlines) < (3+frame.n_atoms):
+  vel, cell_length_rest, cell_angles_rest=readVelocities(inRestartPath)
+  if vel is None:
     print('Information: No velocities in the restart file.')
     frame.save_amberrst7(outPath)
     return
-  
-  vel=np.zeros([frame.n_atoms,3])
-  iLineVel=2+int(n_at/2)
-  vel=np.empty([n_at,3])
-  iVelStart=0
-  if n_at%2==1:
-    vel[iVelStart]=[float(x) for x in inlines[iLineVel].split()[3:]]
-    iVelStart+=1
-    iLineVel+=1
-  for i in range(iVelStart,n_at,2):
-    vel[i]=[float(x) for x in inlines[iLineVel].split()[:3]]
-    vel[i+1]=[float(x) for x in inlines[iLineVel].split()[3:]]
-    iLineVel+=1
-  cell_length_rest=np.array([[float(x) for x in inlines[iLineVel].split()[:3]]])
-  cell_angles_rest=np.array([[float(x) for x in inlines[iLineVel].split()[3:]]])
+  if len(vel) != frame.n_atoms:
+    print('ERROR! Number of atoms in the frame ({}) and restart file ({}) do not match.'.format(frame.n_atoms,len(vel)))
+    return
 
   if np.absolute(cell_length_rest-cell_lengths).max()>0.0001:
     print('ERROR! Cell length in the frame ({}) and restart file ({}) do not match.'.format(cell_lengths,cell_length_rest))
@@ -223,12 +227,13 @@ def saveRestart(outPath,frame,inRestartPath):
       acor = xyz[i, :]
       out.write(fmt % (acor[0], acor[1], acor[2]))
       if i % 2 == 1: out.write('\n')
+  if frame.n_atoms % 2 == 1: out.write('\n')
   #velocities
   for i in range(frame.n_atoms):
     avel = vel[i, :]
     out.write(fmt % (avel[0], avel[1], avel[2]))
-    if (frame.n_atoms+i) % 2 == 1: out.write('\n')    
-  #if frame.n_atoms % 2 == 1: out.write('\n')
+    if i % 2 == 1: out.write('\n')
+  if frame.n_atoms % 2 == 1: out.write('\n')
   if cell_lengths is not None:
       out.write(fmt % (cell_length_rest[0,0], cell_length_rest[0,1],
 				cell_length_rest[0,2]))

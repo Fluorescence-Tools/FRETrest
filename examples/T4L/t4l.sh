@@ -48,5 +48,6 @@ pmemd.cuda -O -i "prod_0001.in" -o "prod_0001.out" -p "148l_watio_hmr.prmtop" -c
 echo "Done: "$( date --rfc-3339=s )
 ambpdb -p 148l_watio_hmr.prmtop -c prod_0001.restrt > prod_0001.pdb
 
+# remove all the results
 # rm leap.log 148l_PA.pdb prod_0001.pdb prod_0000.pdb prod_0000.restrt prod_0001.dump prod_0001.mdcrd prod_0001.out prod_0001.restrt 148l_watio.prmtop 148l_watio_hmr.prmtop 148l_upd.restrt prod_0001.f 148l_watio.inpcrd AV_*.pqr mdinfo
 # rm Equil/logfile Equil/mdinfo Equil/*.out Equil/*.mdcrd Equil/*.restrt
