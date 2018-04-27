@@ -4,8 +4,7 @@ import re
 import colorsys
 
 #Usage:
-#remove solvent
-#run /home/dimura/opt/pymol_scripts/show_restraints_arrows.py; load_restraints md_force_template.f
+#load prod_0000.pdb; remove solvent; run /home/dimura/opt/pymol_scripts/show_restraints_arrows.py; load_restraints prod_0001.f
 def load_restraints(rst_file_path):
   
   DUnames=dict()
@@ -147,11 +146,11 @@ def arrow_start(atom1='pk1', atom2='pk2', length=10.0):
     #print xyz1
     #print xyz2
     norm=cpv.normalize(cpv.sub(xyz2, xyz1))
-    start=cpv.add(xyz1,cpv.scale(norm,1.0))
+    start=cpv.add(xyz1,cpv.scale(norm,1.4))
     end=cpv.add(cpv.scale(norm,abs(length)),start)
     if(length<0.0):
-      cgo_arrow(end,start,0.5)
+      cgo_arrow(end,start,radius=0.3,color='red')
     else:
-      cgo_arrow(start,end,0.5)
+      cgo_arrow(start,end,radius=0.3,color='blue')
     
 cmd.extend('arrow_start', arrow_start)

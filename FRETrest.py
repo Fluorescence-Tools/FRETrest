@@ -85,9 +85,9 @@ def main():
   restraints=[]
   #FRET restraints
   print('\n#FRET restraints')
-  print('name\t\ttRda\t\tRda\tdRda\ttRmp\tRmp')
-  for dist in selDistList:
-    sys.stdout.write('{:<15}'.format(dist)+'\t')
+  print('#\tname\t\ttRda\t\tRda\tdRda\ttRmp\tRmp')
+  for idist,dist in enumerate(selDistList):
+    sys.stdout.write('#{}\t{:<15}'.format(idist,dist)+'\t')
     sys.stdout.flush()
     
     lp1name=jdata["Distances"][dist]["position1_name"]
