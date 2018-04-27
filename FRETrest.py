@@ -23,12 +23,14 @@ def main():
   parser.add_argument('--fout', required=True, type=str,
 		      help='Output restraints file path (AMBER NMR restraints format, DISANG)')
   parser.add_argument('--force', required=True, type=float,
-		      help='Maximum force applied between pseudoatoms in piconewtos')
-  # Optional argument
+		      help='Maximum force applied between a pair of pseudoatoms in piconewtos')
+  # Optional arguments
   parser.add_argument('--chi2', type=str,
 		      help='Name of the chi2[r] to consider. If this option is provided, Labelling Positions, not used by the given chi2[r] will be skipped.')
   parser.add_argument('--resoffset', type=int, default=0,
 		      help='Residue numbering offset between the .fps.json and topology.')
+  parser.add_argument('--nofcap', action='store_true',
+		      help='By default forces are scaled down such, that total FRET force applied to any pseudoatom does not exceed the limit specified with --force. This option disables scaling.')
   args = parser.parse_args()
   
   top=args.top
@@ -39,6 +41,7 @@ def main():
   maxForce=args.force
   chi2Name=args.chi2
   resSeqOffset=args.resoffset
+  noCapForces=args.nofcap
   for path in [top,inRestartPath,jsonPath]:
     if not os.path.isfile(path):
       parser.error("file {} does not exist".format(path))
@@ -81,9 +84,10 @@ def main():
    
   restraints=[]
   #FRET restraints
-  print('#FRET restraints')
+  print('\n#FRET restraints')
+  print('name\t\ttRda\t\tRda\tdRda\ttRmp\tRmp')
   for dist in selDistList:
-    sys.stdout.write(dist+' ... ')
+    sys.stdout.write('{:<15}'.format(dist)+'\t')
     sys.stdout.flush()
     
     lp1name=jdata["Distances"][dist]["position1_name"]
@@ -92,26 +96,41 @@ def main():
     lp2Index=lpNames.index(lp2name)
     duId1=duIds[lp1Index]
     duId2=duIds[lp2Index]
-    rda=float(jdata["Distances"][dist]["distance"])
+    rdaTarget=float(jdata["Distances"][dist]["distance"])
     rtype=jdata["Distances"][dist]["distance_type"]
     R0=jdata["Distances"][dist]["Forster_radius"]
-    rmp=RmpFromRda(avs[lp1name],avs[lp2name],rda,rtype,R0=R0)
+    errNeg=float(jdata["Distances"][dist]["error_neg"])
+    errPos=float(jdata["Distances"][dist]["error_pos"])
+    av1,av2=avs[lp1name],avs[lp2name]
+    rmpTarget=RmpFromRda(av1,av2,rdaTarget,rtype,R0=R0)
+    
+    rdaCurrent=Rda(av1,av2,rtype=rtype,R0=R0)
+    sys.stdout.write('{:.1f}[+{:.1f},-{:.1f}]\t{:.1f}\t{:.1f}\t{:.1f}\t{:.1f}'.format(rdaTarget,errNeg,errPos,rdaCurrent,rdaCurrent-rdaTarget,rmpTarget,Rmp(av1,av2)))
+    
     rest=AmberRestraint()
     rest.iat1=duId1+1
     rest.iat2=duId2+1
-    rest.r2=rmp
+    rest.r2=rmpTarget
     rest.r3=rest.r2
-    rest.r1=rest.r2-float(jdata["Distances"][dist]["error_neg"])
-    rest.r4=rest.r3+float(jdata["Distances"][dist]["error_pos"])
+    rest.r1=rest.r2-errNeg
+    rest.r4=rest.r3+errPos
     rest.rk2=maxForce/(2.0*69.4786*(rest.r2-rest.r1)) #69.4786 pN = 1 kcal/mol Angstrom
     rest.rk3=maxForce/(2.0*69.4786*(rest.r4-rest.r3))
     rest.comment='{} ({}) <--> {} ({}) '.format(lp1name,rest.iat1,lp2name,rest.iat2)
     restraints.append(rest)
     
-    print(' done!')
+    print('')
+  
+  #scale force constants down
+  if not noCapForces:
+    restraints, maxFuc=cappedRestraints(restraints, maxForce, frame.xyz[0,:,:])
+    Ftot=sumForces(restraints, frame.xyz[0,:,:])
+    maxFcheck=np.sqrt(np.sum(np.square([f for f in Ftot.values()]),axis=1)).max()
+    print('Maximum force was scaled down from {:.1f} pN to {:.1f} pN.'.format(maxFuc,maxFcheck))
+    
   
   #anchor restraints
-  print('#anchor restraints')
+  print('\n#Anchor restraints')
   for ilp,lpName in enumerate(lpNames):
     sys.stdout.write('Position '+lpName+'. ')
     sys.stdout.flush()
@@ -168,9 +187,51 @@ class AmberRestraint:
   rk2 = 0.0
   rk3 = 0.0
   comment= ''
+  
   def formString(self):
     return '#{}\n&rst iat = {}, {}, r1 = {:.3f}, r2 = {:.3f}, r3 = {:.3f}, r4 = {:.3f}, rk2 = {:.5f}, rk3 = {:.5f},\n/\n'.format(
       self.comment, self.iat1, self.iat2, self.r1, self.r2, self.r3, self.r4, self.rk2, self.rk3)
+  
+  def force_pN(self,r):
+    #69.4786 pN = 1 kcal/mol Angstrom
+    pNconv=69.4786
+    if r<self.r1:
+      return pNconv*2.0*self.rk2*(self.r2-self.r1) #>=0, push apart 
+    elif r<self.r2:
+      return pNconv*2.0*self.rk2*(self.r2-r)
+    elif r<self.r3:
+      return pNconv*0.0
+    elif r<self.r4:
+      return pNconv*2.0*self.rk3*(self.r3-r)
+    else:
+      return pNconv*2.0*self.rk3*(self.r3-self.r4) #<=0, pull closer
+
+def sumForces(restraints, xyz):
+  Ftot={} #{iat:[Fx,Fy,Fz]}
+  for rest in restraints:
+    mp1 = xyz[rest.iat1-1]*10.0
+    mp2 = xyz[rest.iat2-1]*10.0
+    r = np.sqrt(np.sum(np.square(mp2-mp1)))
+    for iat in [rest.iat1, rest.iat2]:
+      if not iat in Ftot:
+        Ftot[iat] = np.zeros(3)
+    #push apart if force>0
+    dMpNorm = (mp1-mp2)/r
+    #print('{} {} {}'.format(rest.iat1,rest.iat2,rest.force_pN(r)))
+    Ftot[rest.iat1] += dMpNorm * rest.force_pN(r)
+    Ftot[rest.iat2] -= Ftot[rest.iat1]
+  return Ftot
+
+def cappedRestraints(restraints, maxF, xyz):
+  Ftot=sumForces(restraints, xyz)
+  maxFtot=np.sqrt(np.sum(np.square([f for f in Ftot.values()]),axis=1)).max()
+  if maxF>=maxFtot:
+    return restraints
+  scale=maxF/maxFtot
+  for i in range(len(restraints)):
+    restraints[i].rk2*=scale
+    restraints[i].rk3*=scale
+  return restraints, maxFtot
 
 def readVelocities(inRestartPath):
   finRest = open(inRestartPath,'r')
