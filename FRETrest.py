@@ -393,11 +393,15 @@ def selectedLPs(jdata,selDistList):
 
 def selectedDistances(jdata,chi2Name):
   selDistList=[]
+  try:
+    chi2Name=unicode(chi2Name, "utf-8")
+  except:
+    pass
   if chi2Name is not None:
-    if chi2Name in jdata['χ²']:
-      selDistList=list(jdata['χ²'][chi2Name]['distances'])
-    elif chi2Name in jdata['χᵣ²']:
-      selDistList=list(jdata['χᵣ²'][chi2Name]['distances'])
+    if chi2Name in jdata[u'χ²']:
+      selDistList=list(jdata[u'χ²'][chi2Name]['distances'])
+    elif chi2Name in jdata[u'χᵣ²']:
+      selDistList=list(jdata[u'χᵣ²'][chi2Name]['distances'])
     else:
       return None #error
   else:
