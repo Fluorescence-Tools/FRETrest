@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import argparse
 import LabelLib as ll
@@ -303,26 +304,12 @@ def saveRestart(outPath,frame,inRestartPath):
   out.flush()
   
 def av2points(grid):
-  area = grid.shape[0] * grid.shape[1]
-  nx, ny, nz = grid.shape
-  ox, oy, oz = grid.originXYZ
-  dx = grid.discStep
-  g = np.array(grid.grid).reshape((nx, ny, nz),order='F')
-  
-  n_points=(g>0.0).sum()
-  points=np.empty([n_points,4])
-  i=0
-  for iz in range(nz):
-    for iy in range(ny):
-      for ix in range(nx):
-        val = g[ix, iy, iz]
-        if val<=0.0:
-          continue       
-        x = ix * dx + ox
-        y = iy * dx + oy
-        z = iz * dx + oz
-        points[i]=np.array([x,y,z,val])
-        i+=1
+  g = np.array(grid.grid).reshape(grid.shape,order='F')
+  idx=np.argwhere(g > 0.0)
+  idx_rav=np.ravel_multi_index(idx.T,g.shape)
+  vals=np.take(g,idx_rav)
+  points=idx*grid.discStep+grid.originXYZ
+  points=np.column_stack([points,vals])
   return points
 
 def Rmp(av1,av2, transVec=None):
@@ -436,33 +423,13 @@ def selVmd2Mdtraj(sel, resSeqOffset=0):
   sel=p.sub(lambda m: '{}{}'.format(m.group(1),int(m.group(2))+resSeqOffset),sel)
   return sel
 
-def keepString(lp, resSeqOffset=0):
-  strip=selVmd2Mdtraj(lp["strip_mask"], resSeqOffset)  
-  keep='not ('+strip+')'
-  return keep
-
 def avMP(grid):
-  area = grid.shape[0] * grid.shape[1]
-  nx, ny, nz = grid.shape
-  ox, oy, oz = grid.originXYZ
-  dx = grid.discStep
-  g = np.array(grid.grid).reshape((nx, ny, nz),order='F')
-  
-  sumG = 0.0
-  mp=np.zeros(3)
-  for iz in range(nz):
-    for iy in range(ny):
-      for ix in range(nx):
-        val = g[ix, iy, iz]
-        if val<=0.0:
-          continue
-        sumG+=val
-        
-        x = ix * dx + ox
-        y = iy * dx + oy
-        z = iz * dx + oz
-        mp+=np.array([x,y,z])*val
-  mp=mp/sumG
+  g = np.array(grid.grid).reshape(grid.shape,order='F')
+  idx=np.argwhere(g > 0.0)
+  idx_rav=np.ravel_multi_index(idx.T,g.shape)
+  vals=np.take(g,idx_rav)
+  points=idx*grid.discStep+grid.originXYZ
+  mp=np.average(points,axis=0,weights=vals)  
   return mp
 
 def getAV(fr,lp, resSeqOffset=0):
@@ -480,19 +447,19 @@ def getAV(fr,lp, resSeqOffset=0):
   except IndexError:
     print('ERROR! Could not find the specified attachment atom in the topology:\n'+attachSel)
     return None
-  xyzAttach=fr.xyz[0][iAttach]*10.0
-  keepSel=keepString(lp, resSeqOffset)
-  frSliced=fr.atom_slice(fr.topology.select(keepSel))
-  radii=np.empty(frSliced.n_atoms)
-  for iat in range(frSliced.n_atoms):
-    radii[iat]=frSliced.topology.atom(iat).element.radius*10.0
-  xyzr=np.vstack([frSliced.xyz[0].T*10.0,radii])
   
+  xyzAttach=fr.xyz[0][iAttach]*10.0
+  radii=np.empty(fr.n_atoms)
+  for iat in range(fr.n_atoms):
+    radii[iat]=fr.topology.atom(iat).element.radius*10.0
+  xyzr=np.vstack([fr.xyz[0].T*10.0,radii])
+  stripSel=selVmd2Mdtraj(lp["strip_mask"], resSeqOffset)
+  stripAtIds=fr.topology.select(stripSel)
   limDist=float(lp['allowed_sphere_radius'])
-  for i in range(frSliced.n_atoms):
-    dist=np.sqrt(np.sum(np.square(xyzr[:3,i]-xyzAttach)))
-    if dist < limDist:
-      xyzr[3][i]=0.0
+  dist=np.sqrt(np.sum(np.square(fr.xyz[0]*10.0-xyzAttach),axis=1))
+  nearbyAtoms=np.flatnonzero(dist < limDist)
+  stripAtIds=np.append(stripAtIds,nearbyAtoms)
+  xyzr=np.delete(xyzr,stripAtIds,1)
 
   av1 = ll.dyeDensityAV1(xyzr, xyzAttach, linker_length,linker_width,dye_radius, disc_step)
   return av1
