@@ -69,7 +69,7 @@ def main():
   print('#update pseudoatom positions')
   avs={}
   for ilp,lpName in enumerate(lpNames):
-    av=getAV(frame,selLPs[lpName],resSeqOffset)
+    av, attachAtId=getAV(frame,selLPs[lpName],resSeqOffset)
     if av is None:
       print('ERROR! Could not calculate av for labelling position '+lpName)
       return
@@ -79,8 +79,15 @@ def main():
       mp=avMP(av)*0.1
       frame.xyz[0,duId,:]=mp
     else:
-      print('ERROR! Calculation resulted in an empty AV for position {}.'.format(lpName))
-      return
+      print('WARNING! Calculation resulted in an empty AV for position {}. Old position will be used.'.format(lpName))
+      avs[lpName]=point2Av(frame.xyz[0,duId,:]*10.0)
+      linker_length=float(selLPs[lpName]['linker_length'])
+      dist=frame.xyz[0,duId,:]-frame.xyz[0,attachAtId,:]
+      dist=np.sqrt(np.sum(np.square(dist)))*10.0
+      if dist>linker_length:
+        print('WARNING! Distance between the pseudoatom {} and the attachment atom ({:.2f} Angstrom) is larger than the linker length ({:.2f} Angstrom).'
+              .format(lpName,dist,linker_length))
+    
     print(lpName+' done!')
    
   restraints=[]
@@ -155,11 +162,11 @@ def main():
     for ancId in ancIds:
       ancXYZ=frame.xyz[0,ancId,:]
       mp=frame.xyz[0,duId,:]
-      dist=np.sqrt(np.sum(np.square(ancXYZ-mp)))
+      dist=np.sqrt(np.sum(np.square(ancXYZ-mp)))*10.0
       rest=AmberRestraint()
       rest.iat1=duId+1
       rest.iat2=ancId+1
-      rest.r2=dist*10.0
+      rest.r2=dist
       rest.r3=rest.r2
       rest.r1=rest.r2-1.0
       rest.r4=rest.r3+1.0
@@ -312,6 +319,20 @@ def av2points(grid):
   points=np.column_stack([points,vals])
   return points
 
+class AV:
+  grid=[]
+  originXYZ=np.zeros(3)
+  discStep=0.0
+  shape=[0,0,0]
+  
+def point2Av(xyz):
+  av=AV()
+  av.shape=[1,1,1]
+  av.originXYZ=xyz
+  av.discStep=0.01
+  av.grid=[1.0]
+  return av
+
 def Rmp(av1,av2, transVec=None):
   mp1=avMP(av1)
   if transVec is None:
@@ -436,7 +457,7 @@ def getAV(fr,lp, resSeqOffset=0):
   avType=lp['simulation_type']
   if avType != 'AV1':
     print('ERROR! Simulation type is not supported: '+avType)
-    return None
+    return None, None
   linker_length=float(lp['linker_length'])
   linker_width=float(lp['linker_width'])
   dye_radius=float(lp['radius1'])
@@ -446,7 +467,7 @@ def getAV(fr,lp, resSeqOffset=0):
     iAttach=fr.topology.select(attachSel)[0]
   except IndexError:
     print('ERROR! Could not find the specified attachment atom in the topology:\n'+attachSel)
-    return None
+    return None, None
   
   xyzAttach=fr.xyz[0][iAttach]*10.0
   radii=np.empty(fr.n_atoms)
@@ -462,7 +483,7 @@ def getAV(fr,lp, resSeqOffset=0):
   xyzr=np.delete(xyzr,stripAtIds,1)
 
   av1 = ll.dyeDensityAV1(xyzr, xyzAttach, linker_length,linker_width,dye_radius, disc_step)
-  return av1
+  return av1, iAttach
 
 def savePqr(fileName, grid):
   with open(fileName, "w") as out:

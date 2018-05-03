@@ -56,7 +56,7 @@ def main():
     chain=topMP.add_chain()
     res=topMP.add_residue(resName,chain,resSeqLast+ilp+1)
     topMP.add_atom(atName,el,res)
-    av=fr.getAV(frame,selLPs[lpName])
+    av, attAtId=fr.getAV(frame,selLPs[lpName])
     if np.max(av.grid)<=0.0:
       print('ERROR! Could not build an AV for position {}. Is it buried?'.format(lpName))
       return
