@@ -93,10 +93,9 @@ def main():
   restraints=[]
   #FRET restraints
   print('\n#FRET restraints')
-  print('#\tname\t\ttRda\t\tRda\tdRda\ttRmp\tRmp')
+  print('#\tname\t\ttRda\t\t\tRda\tdRda\ttRmp\tRmp')
   for idist,dist in enumerate(selDistList):
-    sys.stdout.write('#{}\t{:<15}'.format(idist,dist)+'\t')
-    sys.stdout.flush()
+        
     
     lp1name=jdata["Distances"][dist]["position1_name"]
     lp2name=jdata["Distances"][dist]["position2_name"]
@@ -113,7 +112,8 @@ def main():
     rmpTarget=RmpFromRda(av1,av2,rdaTarget,rtype,R0=R0)
     
     rdaCurrent=Rda(av1,av2,rtype=rtype,R0=R0)
-    sys.stdout.write('{:.1f}[+{:.1f},-{:.1f}]\t{:.1f}\t{:.1f}\t{:.1f}\t{:.1f}'.format(rdaTarget,errNeg,errPos,rdaCurrent,rdaCurrent-rdaTarget,rmpTarget,Rmp(av1,av2)))
+    print('#{}\t{:<15}\t{:.1f} [+{:.1f}, -{:.1f}]\t{:.1f}\t{:.1f}\t{:.1f}\t{:.1f}'
+      .format(idist,dist,rdaTarget,errNeg,errPos,rdaCurrent,rdaCurrent-rdaTarget,rmpTarget,Rmp(av1,av2)))
     
     rest=AmberRestraint()
     rest.iat1=duId1+1
@@ -126,8 +126,6 @@ def main():
     rest.rk3=maxForce/(2.0*69.4786*(rest.r4-rest.r3))
     rest.comment='{} ({}) <--> {} ({}) '.format(lp1name,rest.iat1,lp2name,rest.iat2)
     restraints.append(rest)
-    
-    print('')
   
   #scale force constants down
   if not noCapForces:
@@ -386,8 +384,7 @@ def RmpFromRda(av1, av2, rda, rtype, R0=None, tolerance=0.2, maxIter=10):
     if abs(dev)<tolerance:
       break
   if abs(dev)>tolerance:
-    print('ERROR! RmpFromRda() could not converge! Achieved deviation: {}, tolerance: {}'.format(abs(dev),tolerance))
-    return None
+    print('WARNING! RmpFromRda() could not converge! Achieved deviation: {:.4f}, tolerance: {:.4f}'.format(abs(dev),tolerance))
   return np.sqrt(np.sum(np.square(mp2+shift-mp1)))
   
 def selectedLPs(jdata,selDistList):
