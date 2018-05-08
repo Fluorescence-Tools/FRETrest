@@ -1,0 +1,8 @@
+Parameters for DUmmy Atom
+MASS
+DU 100.0
+
+NONBON 'RE'
+DU  0.0001  0.0000
+
+END
