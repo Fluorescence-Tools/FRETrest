@@ -18,4 +18,4 @@ Complete step by step usage examples are available at [examples/T4L/t4l.sh](exam
 
 [AmberTools]: http://ambermd.org/GetAmber.php#ambertools
 [LabelLib]: https://github.com/Fluorescence-Tools/labellib
-[mdtraj]: https://github.com/Fluorescence-Tools/labellib
+[mdtraj]: http://mdtraj.org
