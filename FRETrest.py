@@ -232,7 +232,7 @@ def cappedRestraints(restraints, maxF, xyz):
   Ftot=sumForces(restraints, xyz)
   maxFtot=np.sqrt(np.sum(np.square([f for f in Ftot.values()]),axis=1)).max()
   if maxF>=maxFtot:
-    return restraints
+    return restraints, maxFtot
   scale=maxF/maxFtot
   for i in range(len(restraints)):
     restraints[i].rk2*=scale
