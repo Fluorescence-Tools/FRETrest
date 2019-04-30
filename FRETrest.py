@@ -242,7 +242,7 @@ def cappedRestraints(restraints, maxF, xyz):
 def readVelocities(inRestartPath):
   finRest = open(inRestartPath,'r')
   inlines=finRest.readlines()
-  n_at=int(inlines[1].split(' ')[0])
+  n_at=int(inlines[1].split()[0])
   
   if len(inlines) < (3+n_at):
     #No velocities in the restart file
