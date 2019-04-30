@@ -35,7 +35,7 @@ def main():
   if avPrefix is None:
     avPrefix=''
   
-  with open(jsonPath) as jsonFile:    
+  with open(jsonPath, encoding="utf-8") as jsonFile:    
     jdata = json.load(jsonFile)
   selDistList=fr.selectedDistances(jdata,chi2Name)
   if selDistList is None:

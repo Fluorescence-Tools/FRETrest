@@ -47,7 +47,7 @@ def main():
     if not os.path.isfile(path):
       parser.error("file {} does not exist".format(path))
       
-  with open(jsonPath) as jsonFile:    
+  with open(jsonPath, encoding="utf-8") as jsonFile:    
     jdata = json.load(jsonFile)
     
   selDistList=selectedDistances(jdata,chi2Name)
