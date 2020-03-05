@@ -6,6 +6,12 @@ import mdtraj as md
 import argparse
 import os
 import json
+import sys
+
+class ErrCodes:
+  AVBuildFailed = 1
+  EmptyAV = 2
+  
 
 def main():
   parser = argparse.ArgumentParser(description='Append Pseudoatoms, representing Accessible Volume mean positions')
@@ -27,7 +33,7 @@ def main():
   jsonPath=args.json
   chi2Name=args.chi2
   avPrefix=args.avprefix
-  
+	
   if not os.path.isfile(inPath):
     parser.error("pdbin must be an existing PDB file")
   if not os.path.isfile(jsonPath):
@@ -57,9 +63,12 @@ def main():
     res=topMP.add_residue(resName,chain,resSeqLast+ilp+1)
     topMP.add_atom(atName,el,res)
     av, attAtId=fr.getAV(frame,selLPs[lpName])
+    if av is None:
+      print('ERROR! Could not build an AV for position ' + lpName)
+      return ErrCodes.AVBuildFailed
     if np.max(av.grid)<=0.0:
-      print('ERROR! Could not build an AV for position {}. Is it buried?'.format(lpName))
-      return
+      print('ERROR! Empty AV returned for position {}. Is the position buried?'.format(lpName))
+      return ErrCodes.EmptyAV
     xyzMP[0,ilp,:]=fr.avMP(av)*0.1
     if len(avPrefix)>0:
       fr.savePqr(avPrefix+lpName+'.pqr',av)
@@ -68,4 +77,4 @@ def main():
   out.save_pdb(outPath)
   
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
